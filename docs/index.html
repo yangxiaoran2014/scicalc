@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="SciCalc 是一个纯前端、无需登录的在线科学计算器，支持三角函数、对数、阶乘、变量和历史记录。">
+  <meta name="theme-color" content="#080b09">
+  <meta property="og:title" content="SciCalc — 在线科学计算器">
+  <meta property="og:description" content="纯前端、无需登录的科学计算器：三角函数、对数、阶乘、变量和历史记录。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://yangxiaoran2014.github.io/scicalc/">
+  <meta property="og:image" content="https://yangxiaoran2014.github.io/scicalc/preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>SciCalc — 在线科学计算器</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23c0f26b'/%3E%3Ctext x='32' y='45' text-anchor='middle' font-family='Consolas,monospace' font-size='38' font-weight='700' fill='%23121a08'%3E%3D%3C/text%3E%3C/svg%3E">
+  <script>
+    (function () {
+      var theme = "dark";
+      try {
+        var saved = localStorage.getItem("scicalc-theme");
+        if (saved === "light" || saved === "dark") {
+          theme = saved;
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          theme = "light";
+        }
+      } catch (error) {
+        /* localStorage may be unavailable. */
+      }
+      document.documentElement.dataset.theme = theme;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", theme === "light" ? "#eef0e3" : "#080b09");
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#expression">跳到计算输入框</a>
+
+  <div class="backdrop" aria-hidden="true">
+    <span class="glow glow--one"></span>
+    <span class="glow glow--two"></span>
+    <span class="orbit orbit--one"></span>
+    <span class="orbit orbit--two"></span>
+  </div>
+
+  <div class="page">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="SciCalc 首页">
+        <span class="brand-mark" aria-hidden="true">Σ</span>
+        <span class="brand-copy">
+          <strong>SciCalc</strong>
+          <span>Scientific calculator</span>
+        </span>
+      </a>
+
+      <div class="site-actions">
+        <span class="local-badge"><span class="local-dot" aria-hidden="true"></span> RUNS LOCALLY</span>
+        <a class="repo-link" id="repoLink" href="https://github.com/yangxiaoran2014/scicalc" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 查看源码">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 19c-4.2 1.2-4.2-2.2-6-2.7m12 5.2v-3.4c0-1 .1-1.5-.5-2.2 2.7-.3 5.5-1.3 5.5-6a4.7 4.7 0 0 0-1.3-3.3 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.6 11.6 0 0 0-6.1 0C6.7 3.1 5.7 3.4 5.7 3.4a4.3 4.3 0 0 0-.1 3.2 4.7 4.7 0 0 0-1.3 3.3c0 4.7 2.8 5.7 5.5 6-.4.5-.6 1.1-.6 1.9v3.4"></path>
+          </svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="workbench">
+      <section class="calc-card" aria-labelledby="calculatorTitle">
+        <header class="calc-head">
+          <div class="calc-title">
+            <p class="eyebrow">SCIENTIFIC / 01</p>
+            <h1 id="calculatorTitle">科学计算</h1>
+          </div>
+
+          <div class="calc-tools">
+            <div class="angle-switch" role="group" aria-label="角度单位">
+              <button class="angle-button is-active" type="button" data-angle="rad" aria-pressed="true">RAD</button>
+              <button class="angle-button" type="button" data-angle="deg" aria-pressed="false">DEG</button>
+            </div>
+
+            <button class="icon-button" id="helpButton" type="button" aria-label="查看语法帮助" aria-haspopup="dialog" aria-controls="helpDialog" title="语法帮助">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M9.6 9a2.5 2.5 0 1 1 4 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"></path>
+              </svg>
+            </button>
+
+            <button class="icon-button history-toggle" id="historyToggle" type="button" aria-label="显示历史记录" aria-expanded="false" aria-controls="sidePanel" title="历史记录">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.2"></path>
+                <path d="M3.5 3.8v4.4h4.4M12 7.5V12l3.1 1.8"></path>
+              </svg>
+            </button>
+
+            <button class="icon-button" id="themeToggle" type="button" aria-label="切换到浅色模式" title="切换配色">
+              <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.6"></circle>
+                <path d="M12 2.6v2M12 19.4v2M2.6 12h2M19.4 12h2M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M18.6 5.4l-1.4 1.4M6.8 17.2l-1.4 1.4"></path>
+              </svg>
+              <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.3 14.5A8.5 8.5 0 0 1 9.5 3.7a8.5 8.5 0 1 0 10.8 10.8Z"></path>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="console" id="console">
+          <div class="console-head">
+            <div class="console-status" id="consoleStatus">
+              <span class="signal" aria-hidden="true"></span>
+              <span id="statusText">READY</span>
+            </div>
+            <div class="console-meta">
+              <span id="angleMeta">RAD</span>
+              <span>·</span>
+              <span>12 DIGITS</span>
+              <button class="copy-button" id="copyButton" type="button" aria-label="复制结果" title="复制结果">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="8" y="8" width="11" height="11" rx="2"></rect>
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="last-command is-idle" id="lastCommand">输入表达式开始计算</div>
+
+          <div class="result-line">
+            <span class="equals-mark" aria-hidden="true">=</span>
+            <output class="result" id="result" data-size="md" aria-live="polite" aria-atomic="true">0</output>
+          </div>
+
+          <form class="command-bar" id="expressionForm" autocomplete="off">
+            <label class="sr-only" for="expression">输入科学计算表达式</label>
+            <span class="prompt" aria-hidden="true">&gt;</span>
+            <input id="expression" name="expression" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="例如：sin(pi/2) + sqrt(16)" aria-describedby="commandHint">
+            <button class="run-button" type="submit" aria-label="计算表达式">
+              <span>RUN</span>
+              <span class="run-arrow" aria-hidden="true">↵</span>
+            </button>
+          </form>
+
+          <div class="console-bottom">
+            <span id="commandHint">Enter 计算 · Esc 清空 · ↑↓ 历史</span>
+            <span id="errorLine" class="error-line" role="alert" hidden></span>
+          </div>
+        </div>
+
+        <div class="sci-grid" aria-label="科学函数快捷键">
+          <button class="sci-key" type="button" data-function="sin">sin</button>
+          <button class="sci-key" type="button" data-function="cos">cos</button>
+          <button class="sci-key" type="button" data-function="tan">tan</button>
+          <button class="sci-key" type="button" data-function="ln">ln</button>
+          <button class="sci-key" type="button" data-function="log">log</button>
+          <button class="sci-key" type="button" data-insert="sqrt()" data-caret-back="1" aria-label="平方根">√</button>
+          <button class="sci-key" type="button" data-insert="^" aria-label="幂">x<sup>y</sup></button>
+          <button class="sci-key" type="button" data-insert="!" aria-label="阶乘">n!</button>
+          <button class="sci-key" type="button" data-insert="π" aria-label="圆周率">π</button>
+          <button class="sci-key" type="button" data-insert="e" aria-label="自然常数">e</button>
+          <button class="sci-key" type="button" data-insert="(" aria-label="左括号">(</button>
+          <button class="sci-key" type="button" data-insert=")" aria-label="右括号">)</button>
+          <button class="sci-key" type="button" data-function="abs">abs</button>
+          <button class="sci-key" type="button" data-insert="ans" aria-label="上次结果">ans</button>
+        </div>
+
+        <div class="keypad" role="group" aria-label="数字键盘">
+          <button class="key key-func" type="button" data-action="clear" aria-label="清空表达式">AC</button>
+          <button class="key key-func" type="button" data-action="backspace" aria-label="退格" title="退格">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9.2 5.5h9.1a2.2 2.2 0 0 1 2.2 2.2v8.6a2.2 2.2 0 0 1-2.2 2.2H9.2L3.5 12l5.7-6.5Z"></path>
+              <path d="m12.5 9.3 4.5 5.4m0-5.4-4.5 5.4"></path>
+            </svg>
+          </button>
+          <button class="key key-func" type="button" data-insert="%" aria-label="百分比或取余">%</button>
+          <button class="key key-op" type="button" data-insert="/" aria-label="除以" title="除以">÷</button>
+
+          <button class="key" type="button" data-insert="7">7</button>
+          <button class="key" type="button" data-insert="8">8</button>
+          <button class="key" type="button" data-insert="9">9</button>
+          <button class="key key-op" type="button" data-insert="*" aria-label="乘以" title="乘以">×</button>
+
+          <button class="key" type="button" data-insert="4">4</button>
+          <button class="key" type="button" data-insert="5">5</button>
+          <button class="key" type="button" data-insert="6">6</button>
+          <button class="key key-op" type="button" data-insert="-" aria-label="减去" title="减去">−</button>
+
+          <button class="key" type="button" data-insert="1">1</button>
+          <button class="key" type="button" data-insert="2">2</button>
+          <button class="key" type="button" data-insert="3">3</button>
+          <button class="key key-op" type="button" data-insert="+" aria-label="加上" title="加上">+</button>
+
+          <button class="key key-func" type="button" data-action="square" aria-label="平方" title="平方">x²</button>
+          <button class="key" type="button" data-insert="0">0</button>
+          <button class="key" type="button" data-action="decimal" aria-label="小数点" title="小数点">.</button>
+          <button class="key key-equals" type="button" data-action="equals" aria-label="计算">=</button>
+        </div>
+
+        <div class="examples" aria-label="示例表达式">
+          <span class="examples-label">TRY</span>
+          <button type="button" data-example="sin(pi / 2)">sin(π/2)</button>
+          <button type="button" data-example="2^10">2^10</button>
+          <button type="button" data-example="log(1000)">log(1000)</button>
+          <button type="button" data-example="√(81) + 4!">√81 + 4!</button>
+        </div>
+      </section>
+
+      <aside class="side-panel" id="sidePanel" aria-label="历史记录与变量">
+        <section class="panel-section history-section">
+          <header class="panel-head">
+            <div>
+              <p class="eyebrow">MEMORY</p>
+              <h2>历史记录</h2>
+            </div>
+            <button class="text-button" id="clearHistory" type="button">清空</button>
+          </header>
+          <div class="history-list" id="historyList"></div>
+        </section>
+
+        <section class="panel-section variables-section">
+          <header class="panel-head compact">
+            <div>
+              <p class="eyebrow">SESSION</p>
+              <h2>变量</h2>
+            </div>
+            <button class="text-button" id="clearSession" type="button">重置</button>
+          </header>
+          <div class="variable-list" id="variableList"></div>
+        </section>
+
+        <div class="panel-foot">点击表达式可载入输入框 · 数据仅保存在本机</div>
+      </aside>
+    </main>
+
+    <footer class="site-footer">
+      <span>SciCalc 1.0 · 纯前端科学计算器</span>
+      <span class="footer-sep" aria-hidden="true">/</span>
+      <span>no accounts · no tracking</span>
+      <span class="footer-spacer"></span>
+      <span class="footer-key">PRESS <kbd>?</kbd> FOR HELP</span>
+    </footer>
+  </div>
+
+  <dialog class="help-dialog" id="helpDialog" aria-labelledby="helpTitle">
+    <div class="dialog-head">
+      <div>
+        <p class="eyebrow">REFERENCE</p>
+        <h2 id="helpTitle">语法与快捷键</h2>
+      </div>
+      <button class="icon-button dialog-close" id="closeHelp" type="button" aria-label="关闭帮助">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <path d="m6 6 12 12M18 6 6 18"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="dialog-body">
+      <section class="help-section">
+        <h3>键盘</h3>
+        <div class="shortcut-grid">
+          <div><kbd>Enter</kbd><span>计算当前表达式</span></div>
+          <div><kbd>Esc</kbd><span>清空输入框</span></div>
+          <div><kbd>↑</kbd><kbd>↓</kbd><span>翻阅历史表达式</span></div>
+          <div><kbd>?</kbd><span>打开本帮助</span></div>
+        </div>
+      </section>
+
+      <section class="help-section">
+        <h3>运算符</h3>
+        <p class="help-copy">
+          <code>+</code> <code>-</code> <code>*</code> <code>/</code>
+          <code>//</code> 整除
+          <code>%</code> 取余
+          <code>^</code> 幂（也支持 <code>**</code>）
+          <code>!</code> 阶乘
+        </p>
+        <p class="help-copy">支持隐式乘法：<code>2π</code>、<code>3(4+1)</code>、<code>2sqrt(9)</code>。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>函数</h3>
+        <div class="function-table">
+          <div><span>三角函数</span><code>sin cos tan sec csc cot</code></div>
+          <div><span>反三角函数</span><code>asin acos atan atan2</code></div>
+          <div><span>双曲函数</span><code>sinh cosh tanh asinh acosh atanh</code></div>
+          <div><span>对数指数</span><code>ln log log2 log10 exp</code></div>
+          <div><span>根号与取整</span><code>sqrt cbrt floor ceil round trunc abs</code></div>
+          <div><span>组合与统计</span><code>factorial min max gcd lcm hypot</code></div>
+        </div>
+        <p class="help-copy"><code>log(x)</code> 以 10 为底，<code>log(x, b)</code> 可指定底数。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>常量与变量</h3>
+        <p class="help-copy">
+          <code>pi / π</code>、<code>e</code>、<code>tau / τ</code>、<code>phi</code>；
+          <code>ans</code> 表示上一次结果。
+        </p>
+        <p class="help-copy">使用 <code>x = 2^10</code> 保存变量，之后输入 <code>x / 4</code> 使用它。</p>
+      </section>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="noscript">SciCalc 需要启用 JavaScript 才能计算。请在浏览器设置中启用 JavaScript。</div>
+  </noscript>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
