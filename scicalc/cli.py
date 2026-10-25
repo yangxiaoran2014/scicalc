@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 import unicodedata
-from typing import Iterable, TextIO
+from typing import TextIO
 
 from . import __version__
 from .engine import CalcError, Calculator, format_number

@@ -4,18 +4,30 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scicalc-cli"
-version = "1.0.0"
-description = "A safe, zero-dependency scientific calculator for the terminal and the web."
+version = "1.1.0"
+description = "A safe, zero-dependency scientific calculator for Windows, the terminal, and the web."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "yangxiaoran2014" }]
-keywords = ["calculator", "scientific", "cli", "repl", "math", "terminal"]
+keywords = [
+  "calculator",
+  "scientific",
+  "cli",
+  "repl",
+  "math",
+  "terminal",
+  "windows",
+  "desktop",
+  "tkinter",
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Console",
+  "Environment :: Win32 (MS Windows)",
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",
+  "Natural Language :: Chinese (Simplified)",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -28,6 +40,9 @@ classifiers = [
 [project.scripts]
 scicalc = "scicalc.cli:main"
 
+[project.gui-scripts]
+scicalc-desktop = "scicalc.desktop:main"
+
 [project.urls]
 Homepage = "https://yangxiaoran2014.github.io/scicalc/"
 Repository = "https://github.com/yangxiaoran2014/scicalc"
@@ -35,6 +50,7 @@ Issues = "https://github.com/yangxiaoran2014/scicalc/issues"
 
 [project.optional-dependencies]
 dev = []
+build = ["pyinstaller>=6.10; platform_system == 'Windows'"]
 
 [tool.setuptools]
 packages = ["scicalc"]

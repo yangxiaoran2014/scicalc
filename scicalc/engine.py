@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Sequence
 
 MAX_SOURCE_LENGTH = 2_000
 MAX_FACTORIAL = 1_000
@@ -85,13 +85,11 @@ def tokenize(source: str) -> list[Token]:
 
         if char.isdigit() or (char == "." and index + 1 < length and text[index + 1].isdigit()):
             start = index
-            has_dot = False
 
             while index < length and text[index].isdigit():
                 index += 1
 
             if index < length and text[index] == ".":
-                has_dot = True
                 index += 1
                 while index < length and text[index].isdigit():
                     index += 1
