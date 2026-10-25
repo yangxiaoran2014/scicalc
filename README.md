@@ -122,6 +122,22 @@ powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 
 输出为 `dist\SciCalcCMD.exe`，脚本会同时打印文件大小和 SHA-256。PyInstaller 构建配置位于 [`packaging/`](packaging/)。
 
+### 本地测试签名（可选）
+
+如果要在本机验证 Authenticode 签名，可以运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\sign-windows-test.ps1
+```
+
+脚本会创建一个仅用于本地测试的证书链，复制 `dist\SciCalcCMD-1.1.0-windows-x64.exe` 到 `dist\signed\`，使用 SHA-256 和 RFC 3161 时间戳签名，并导出 `SciCalc-LocalTest-RootCA.cer`。原始 EXE 不会被修改。
+
+> 这是**自签名测试**，不是受信任的公开签名。其他电脑没有这个测试根证书，仍会显示“未知发布者”，SmartScreen 也可能继续拦截。不要把它当作公开发布签名。
+>
+> 若要让当前 Windows 用户在本机看到有效签名，可双击 `SciCalc-LocalTest-RootCA.cer`，选择“安装证书” → “当前用户” → “将所有的证书都放入下列存储” → “受信任的根证书颁发机构”。只在信任这台机器和这个测试证书时这样做。
+
+脚本会输出删除测试根证书和签名证书的命令。公开发布若需要消除 SmartScreen 警告，必须使用受信任的 OV/EV 代码签名证书，或通过 SignPath / Azure Trusted Signing 等服务完成身份验证；自签名无法做到。
+
 ## 命令行使用
 
 需要 Python 3.10 或更高版本。
@@ -267,6 +283,7 @@ node --test tests/web/core.test.mjs
 ├── scicalc-cmd.pyw         # 无控制台启动器
 ├── run-scicalc-cmd.cmd     # Windows 双击启动脚本
 ├── build-windows.ps1       # EXE 构建脚本
+├── sign-windows-test.ps1   # 本地自签名测试脚本
 ├── pyproject.toml
 └── README.md
 ```
