@@ -13,6 +13,9 @@ test("arithmetic precedence", () => {
   assert.equal(evaluate("(1 + 2) * 3").value, 9);
   assert.equal(evaluate("10 // 4").value, 2);
   assert.equal(evaluate("10 % 4").value, 2);
+  assert.equal(evaluate("1 // 0.1").value, 10);
+  assert.equal(evaluate("3 // 0.1").value, 30);
+  assert.equal(evaluate("-3 // 0.1").value, -30);
 });
 
 test("power is right-associative and binds before unary", () => {
@@ -39,6 +42,16 @@ test("scientific functions", () => {
   assert.equal(evaluate("max(1, 5, 3)").value, 5);
   assert.equal(evaluate("gcd(24, 36)").value, 12);
   assert.equal(evaluate("lcm(6, 8)").value, 24);
+});
+
+test("rounding uses decimal half-ceiling", () => {
+  assert.equal(evaluate("round(2.5)").value, 3);
+  assert.equal(evaluate("round(3.5)").value, 4);
+  assert.equal(evaluate("round(-2.5)").value, -2);
+  assert.equal(evaluate("round(1.005, 2)").value, 1.01);
+  assert.equal(evaluate("round(2.675, 2)").value, 2.68);
+  assert.equal(evaluate("round(125, -1)").value, 130);
+  assert.equal(evaluate("round(-125, -1)").value, -120);
 });
 
 test("degree mode", () => {

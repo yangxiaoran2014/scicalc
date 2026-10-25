@@ -440,12 +440,25 @@ function logValue(args, position) {
   return Math.log(value) / Math.log(base);
 }
 
+function shiftDecimal(value, digits) {
+  if (value === 0) return 0;
+  const [mantissa, exponent] = value.toExponential().split("e");
+  return Number(`${mantissa}e${Number(exponent) + digits}`);
+}
+
+function roundHalfCeiling(value, digits) {
+  if (Number.isInteger(value) && digits >= 0) return value;
+  const shifted = shiftDecimal(value, digits);
+  if (!Number.isFinite(shifted)) return value;
+  const rounded = Math.floor(shifted + 0.5);
+  return shiftDecimal(rounded, -digits);
+}
+
 function roundValue(args, position) {
-  if (args.length === 1) return Math.round(args[0]);
+  if (args.length === 1) return roundHalfCeiling(args[0], 0);
   const digits = ensureInteger(args[1], "round 的精度", position);
   if (digits < -15 || digits > 15) throw new CalcError("round 的精度必须在 -15 到 15 之间", position);
-  const factor = 10 ** digits;
-  return Math.round((args[0] + Number.EPSILON * Math.sign(args[0])) * factor) / factor;
+  return roundHalfCeiling(args[0], digits);
 }
 
 defineFunction("sin", 1, 1, (args, evaluator, position) => Math.sin(toRadians(args[0], evaluator.calculator.angleMode)));

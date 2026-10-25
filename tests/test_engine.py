@@ -19,6 +19,9 @@ class CalculatorTestCase(unittest.TestCase):
         self.assertEqual(self.value("10 / 4"), 2.5)
         self.assertEqual(self.value("10 // 4"), 2)
         self.assertEqual(self.value("10 % 4"), 2)
+        self.assertEqual(self.value("1 // 0.1"), 10)
+        self.assertEqual(self.value("3 // 0.1"), 30)
+        self.assertEqual(self.value("-3 // 0.1"), -30)
 
     def test_power_is_right_associative_and_binds_before_unary(self) -> None:
         self.assertEqual(self.value("2^3^2"), 512)
@@ -49,6 +52,20 @@ class CalculatorTestCase(unittest.TestCase):
         self.assertEqual(self.value("lcm(6, 8)"), 24)
         self.assertEqual(self.value("round(2.6)"), 3)
 
+    def test_rounding_matches_web_engine(self) -> None:
+        cases = {
+            "round(2.5)": 3,
+            "round(3.5)": 4,
+            "round(-2.5)": -2,
+            "round(1.005, 2)": 1.01,
+            "round(2.675, 2)": 2.68,
+            "round(125, -1)": 130,
+            "round(-125, -1)": -120,
+        }
+        for expression, expected in cases.items():
+            with self.subTest(expression=expression):
+                self.assertEqual(self.value(expression), expected)
+
     def test_degree_mode(self) -> None:
         self.calculator.set_angle_mode("deg")
         self.assertAlmostEqual(self.value("sin(30)"), 0.5)
@@ -73,6 +90,29 @@ class CalculatorTestCase(unittest.TestCase):
         self.assertEqual(format_number(-0.0), "0")
         self.assertEqual(format_number(10**20), "1e20")
         self.assertEqual(format_number(math.pi, 5), "3.1416")
+
+    def test_large_integer_formatting(self) -> None:
+        self.assertEqual(format_number(10**5000), "1e5000")
+        self.assertEqual(format_number(10**5000, 17), "1e5000")
+        self.assertEqual(format_number(10**10000), "1e10000")
+        self.assertEqual(format_number(-(10**5000)), "-1e5000")
+        self.assertEqual(format_number(10**5000 - 1), "1e5000")
+        self.assertEqual(format_number(10**5000 + 1), "1e5000")
+        self.assertEqual(format_number(123456789012345678901), "1.23456789012e20")
+
+        result = self.calculator.evaluate("1000! * 1000!")
+        self.assertEqual(result.text, "1.61915507072e5135")
+
+    def test_large_roots_and_result_limit(self) -> None:
+        self.assertAlmostEqual(self.value("sqrt(10^600)") / 1e300, 1, places=12)
+        self.assertAlmostEqual(self.value("cbrt(10^900)") / 1e300, 1, places=12)
+        self.assertAlmostEqual(self.value("sqrt(10^600 + 1)") / 1e300, 1, places=12)
+        self.assertEqual(self.value("sqrt(10^700)"), 10**350)
+
+        with self.assertRaisesRegex(CalcError, "超出范围"):
+            self.value("cbrt(10^1000)")
+        with self.assertRaisesRegex(CalcError, "结果过大"):
+            self.value("10^10000 * 10^10000 * 10^10000 * 10^10000")
 
     def test_division_by_zero(self) -> None:
         with self.assertRaisesRegex(CalcError, "不能除以 0"):

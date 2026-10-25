@@ -40,10 +40,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "0.33333")
 
+    def test_attached_precision_option(self) -> None:
+        result = run_cli("-p5", "1 / 3")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "0.33333")
+
     def test_expression_made_of_multiple_arguments(self) -> None:
         result = run_cli("2", "+", "3", "*", "4")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "14")
+
+    def test_large_integer_result(self) -> None:
+        result = run_cli("10^5000")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "1e5000")
+
+        result = run_cli("sqrt(10^600)")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "1e300")
 
     def test_leading_minus_expression(self) -> None:
         result = run_cli("-2^2 + 10")

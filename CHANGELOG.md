@@ -4,6 +4,19 @@ All notable changes to SciCalc are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases use
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Large integer results no longer crash number formatting on Python 3.11+.
+- `sqrt` and `cbrt` handle large integer inputs without an unnecessary float
+  overflow.
+- The CLI accepts attached precision values such as `-p5`.
+- `round` now uses the same decimal half-ceiling rule in the Python and web
+  engines.
+- Float floor division (`//`) matches the web engine, so `1 // 0.1` is `10`.
+- Documented the different factorial limits of the desktop/CLI and web builds.
+
 ## [1.1.0] - 2026-10-25
 
 ### Added

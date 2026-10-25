@@ -155,6 +155,15 @@ def _normalise_argv(argv: list[str]) -> list[str]:
             index += 1
             continue
 
+        if token.startswith("-p") and len(token) > 2:
+            attached = token[2:]
+            if attached[:1] in ("+", "-"):
+                attached = attached[1:]
+            if attached.isdigit():
+                output.append(token)
+                index += 1
+                continue
+
         if token in _FLAG_OPTIONS:
             output.append(token)
             index += 1

@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_FLOOR, localcontext
 from typing import Any, Callable, Sequence
 
 MAX_SOURCE_LENGTH = 2_000
@@ -384,22 +385,50 @@ _CONSTANTS = {
 }
 
 
+_LOG10_2 = 0.3010299956639812
+
+
+def _decimal_digit_count(value: int) -> int:
+    """Count decimal digits without converting a huge integer to a string.
+
+    Python 3.11+ limits ``str()`` on integers to 4300 digits by default, but
+    the calculator allows larger intermediate results.  The bit length gives
+    an estimate that is corrected with one or two exact powers of ten.
+    """
+
+    if value == 0:
+        return 1
+    digits = int((value.bit_length() - 1) * _LOG10_2) + 1
+    power = 10**digits
+    while value >= power:
+        digits += 1
+        power *= 10
+    while value < power // 10:
+        digits -= 1
+        power //= 10
+    return digits
+
+
 def _format_big_integer(value: int, precision: int) -> str:
     sign = "-" if value < 0 else ""
-    digits = str(abs(value))
-    exponent = len(digits) - 1
-    keep = min(precision, len(digits))
-    significant = digits[:keep]
+    magnitude = abs(value)
+    digits = _decimal_digit_count(magnitude)
+    exponent = digits - 1
+    keep = min(precision, digits)
 
-    if keep < len(digits) and digits[keep] >= "5":
-        rounded = int(significant) + 1
-        significant = str(rounded)
-        if len(significant) > keep:
+    # At most ``precision`` (<= 17) digits; this conversion is always safe.
+    if keep >= digits:
+        return f"{sign}{magnitude}"
+
+    scale = 10 ** (digits - keep)
+    leading, remainder = divmod(magnitude, scale)
+    if remainder * 2 >= scale:
+        leading += 1
+        if leading >= 10**keep:
             exponent += 1
-            significant = significant[:keep]
-        significant = significant.ljust(keep, "0")
+            leading //= 10
 
-    significant = significant.rstrip("0") or "0"
+    significant = str(leading).ljust(keep, "0").rstrip("0") or "0"
     if len(significant) == 1:
         mantissa = significant
     else:
@@ -522,7 +551,13 @@ class _Evaluator:
                 elif node.operator == "//":
                     if right == 0:
                         raise CalcError("不能除以 0", node.position)
-                    value = left // right
+                    if isinstance(left, int) and isinstance(right, int):
+                        value = left // right
+                    else:
+                        # Python's float // corrects for representation error,
+                        # so 1 // 0.1 is 9.  Use the same floor(left / right)
+                        # rule as the web engine and ordinary calculators.
+                        value = math.floor(left / right)
                 elif node.operator == "%":
                     if right == 0:
                         raise CalcError("不能对 0 取模", node.position)
@@ -592,6 +627,8 @@ def _check_result(value: Any, position: int) -> int | float:
         raise CalcError("计算结果不是数字", position)
     if isinstance(value, float) and not math.isfinite(value):
         raise CalcError("结果超出范围", position)
+    if isinstance(value, int) and value.bit_length() > MAX_RESULT_BITS:
+        raise CalcError("结果过大", position)
     return value
 
 
@@ -680,17 +717,40 @@ def _fn_cot(evaluator: _Evaluator, args: Sequence[int | float], position: int) -
     return 1 / tangent
 
 
-def _fn_sqrt(arguments: Sequence[int | float], position: int) -> float:
-    if arguments[0] < 0:
+def _fn_sqrt(arguments: Sequence[int | float], position: int) -> int | float:
+    value = arguments[0]
+    if value < 0:
         raise CalcError("sqrt 在实数范围内无定义", position)
-    return math.sqrt(arguments[0])
+
+    # math.sqrt converts its argument to float, so a large integer such as
+    # 10**600 overflows even though its square root (10**300) is representable.
+    if isinstance(value, int) and value.bit_length() > 1023:
+        root = math.isqrt(value)
+        if root * root == value:
+            return root
+        try:
+            return math.exp(math.log(value) / 2)
+        except OverflowError:
+            raise CalcError("sqrt 的结果超出范围", position) from None
+
+    return math.sqrt(value)
 
 
 def _fn_cbrt(arguments: Sequence[int | float], position: int) -> float:
     value = arguments[0]
     if value == 0:
         return 0.0
-    return math.copysign(abs(value) ** (1 / 3), value)
+
+    magnitude = abs(value)
+    if isinstance(value, int) and magnitude.bit_length() > 1023:
+        try:
+            root = math.exp(math.log(magnitude) / 3)
+        except OverflowError:
+            raise CalcError("cbrt 的结果超出范围", position) from None
+    else:
+        root = magnitude ** (1 / 3)
+    # Do not pass a huge int to math.copysign: it would convert it to float.
+    return -root if value < 0 else root
 
 
 def _fn_ln(arguments: Sequence[int | float], position: int) -> float:
@@ -729,13 +789,49 @@ def _fn_log10(arguments: Sequence[int | float], position: int) -> float:
     return math.log10(arguments[0])
 
 
+def _round_half_ceiling(value: int | float, digits: int) -> int | float:
+    """Match JavaScript's ``Math.round`` (ties go toward positive infinity).
+
+    Decimal string shifting avoids binary floating-point surprises such as
+    ``1.005 * 100 == 100.49999999999999``.
+    """
+
+    if isinstance(value, int):
+        if digits >= 0:
+            return value
+        factor = 10 ** (-digits)
+        quotient, remainder = divmod(value, factor)
+        if remainder * 2 >= factor:
+            quotient += 1
+        return quotient * factor
+
+    if value == 0:
+        return 0
+
+    if value.is_integer():
+        if digits > 0:
+            return value
+        if abs(value) < 1e16:
+            return int(value)
+
+    with localcontext() as context:
+        context.prec = max(40, abs(digits) + 30)
+        shifted = Decimal(str(value)).scaleb(digits)
+        floored = shifted.to_integral_value(rounding=ROUND_FLOOR)
+        if shifted - floored >= Decimal("0.5"):
+            floored += 1
+        result = floored.scaleb(-digits)
+
+    return int(result) if digits <= 0 else float(result)
+
+
 def _fn_round(arguments: Sequence[int | float], position: int) -> int | float:
     if len(arguments) == 1:
-        return round(arguments[0])
+        return _round_half_ceiling(arguments[0], 0)
     digits = _as_integer(arguments[1], "round 的精度", position)
     if digits < -15 or digits > 15:
         raise CalcError("round 的精度必须在 -15 到 15 之间", position)
-    return round(arguments[0], digits)
+    return _round_half_ceiling(arguments[0], digits)
 
 
 def _fn_factorial(arguments: Sequence[int | float], position: int) -> int:

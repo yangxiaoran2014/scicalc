@@ -27,6 +27,10 @@ class DesktopSessionTests(unittest.TestCase):
         self.assertIn("= 5", rendered(self.session.submit("sin(pi / 2) + sqrt(16)")))
         self.assertEqual(self.session.calculator.ans, 5)
 
+    def test_large_integer_result(self) -> None:
+        self.assertIn("= 1e5000", rendered(self.session.submit("10^5000")))
+        self.assertIn("= 1.61915507072e5135", rendered(self.session.submit("1000! * 1000!")))
+
     def test_assignment_and_variables(self) -> None:
         result = self.session.submit("x = 2^10")
         self.assertIn("x = 1024", rendered(result))
