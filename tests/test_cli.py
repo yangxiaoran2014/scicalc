@@ -97,7 +97,7 @@ class CliTests(unittest.TestCase):
     def test_version(self) -> None:
         result = run_cli("--version")
         self.assertEqual(result.returncode, 0)
-        self.assertIn("scicalc 1.1.0", result.stdout)
+        self.assertIn("scicalc 1.1.1", result.stdout)
 
 
 if __name__ == "__main__":

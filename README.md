@@ -44,11 +44,13 @@ Windows 桌面版下载：[GitHub Releases](https://github.com/yangxiaoran2014/s
 
 ### 直接运行 EXE
 
-从 [Releases](https://github.com/yangxiaoran2014/scicalc/releases/latest) 下载 `SciCalcCMD-1.1.0-windows-x64.exe`，双击即可，不需要安装 Python。
+从 [Releases](https://github.com/yangxiaoran2014/scicalc/releases/latest) 下载 `SciCalcCMD-1.1.1-windows-x64.exe`，双击即可，不需要安装 Python。
 
 > 这是一个未签名的个人构建。Windows SmartScreen 可能提示“未知发布者”，请核对 Release 中公布的 SHA-256 后运行。
 >
-> `SciCalcCMD-1.1.0-windows-x64.exe` SHA-256：`76BF1B8658E42BDEFCBBE38F7A54B1DD94242157373284B0CCB7229B3BA613F4`
+> `SciCalcCMD-1.1.1-windows-x64.exe` SHA-256：`E7EB88E39D2AE1754029A67CFC1E685B188167B3932848DD787FECCBDA071CD4`
+>
+> Release 同时提供一个带本地测试证书的 `SciCalcCMD-1.1.1-windows-x64-test-signed.exe`。该证书不受公共信任，仅用于验证签名流程；普通用户建议下载上面的未签名官方构建。
 
 ### 从源码运行
 
@@ -130,7 +132,7 @@ powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 powershell -ExecutionPolicy Bypass -File .\sign-windows-test.ps1
 ```
 
-脚本会创建一个仅用于本地测试的证书链，复制 `dist\SciCalcCMD-1.1.0-windows-x64.exe` 到 `dist\signed\`，使用 SHA-256 和 RFC 3161 时间戳签名，并导出 `SciCalc-LocalTest-RootCA.cer`。原始 EXE 不会被修改。
+脚本会创建一个仅用于本地测试的证书链，复制 `dist\SciCalcCMD-1.1.1-windows-x64.exe` 到 `dist\signed\`，使用 SHA-256 和 RFC 3161 时间戳签名，并导出 `SciCalc-LocalTest-RootCA.cer`。原始 EXE 不会被修改。
 
 > 这是**自签名测试**，不是受信任的公开签名。其他电脑没有这个测试根证书，仍会显示“未知发布者”，SmartScreen 也可能继续拦截。不要把它当作公开发布签名。
 >
@@ -179,7 +181,7 @@ python -m scicalc -2^2 + 10
 
 ```console
 $ python -m scicalc
-SciCalc 1.1.0
+SciCalc 1.1.1
 科学计算器  ·  RAD  ·  12 位有效数字
 输入 :help 查看命令，:quit 退出。
 

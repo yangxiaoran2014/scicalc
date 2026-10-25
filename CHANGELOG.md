@@ -4,7 +4,11 @@ All notable changes to SciCalc are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases use
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.1] - 2026-10-25
+
+### Changed
+
+- Version bumped to 1.1.1 for the bug-fix Windows release.
 
 ### Fixed
 
@@ -58,5 +62,6 @@ All notable changes to SciCalc are documented here. The format follows
 - Python and Node.js test suites.
 - GitHub Pages deployment from `docs/`.
 
+[1.1.1]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.1.1
 [1.1.0]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.1.0
 [1.0.0]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.0.0

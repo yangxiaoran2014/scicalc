@@ -47,7 +47,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 if (-not $SourcePath) {
-    $SourcePath = Join-Path $PSScriptRoot 'dist\SciCalcCMD-1.1.0-windows-x64.exe'
+    $SourcePath = Join-Path $PSScriptRoot 'dist\SciCalcCMD-1.1.1-windows-x64.exe'
 }
 if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $PSScriptRoot 'dist\signed'
