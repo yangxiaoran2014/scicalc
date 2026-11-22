@@ -14,9 +14,9 @@
   <img src="docs/preview-mobile.png" alt="SciCalc 网页版手机界面" width="230">
 </p>
 
-- **Desktop**：类似 Windows 命令提示符的桌面程序，支持输入历史、Tab 补全、F7 历史窗口、深色标题栏。
+- **Desktop**：类似 Windows 命令提示符的桌面程序，新增状态栏、F2 变量管理、字号缩放和一键复制结果。
 - **CLI**：交互式 REPL、单次执行、管道输入、变量、历史记录、角度制切换。
-- **Web**：纯前端科学计算器，支持键盘输入、函数快捷键、历史、变量和浅色/深色主题。
+- **Web**：纯前端科学计算器，新增实时预览、精度选择、历史搜索和单变量删除。
 - **共享能力**：三角函数、反三角函数、双曲函数、对数、指数、阶乘、隐式乘法、`ans` 与自定义变量。
 
 在线体验：[https://yangxiaoran2014.github.io/scicalc/](https://yangxiaoran2014.github.io/scicalc/)
@@ -33,8 +33,11 @@ Windows 桌面版下载：[GitHub Releases](https://github.com/yangxiaoran2014/s
 | 角度制 / 弧度制 | ✅ | ✅ | ✅ |
 | 隐式乘法 `2π`、`3(4+1)` | ✅ | ✅ | ✅ |
 | 变量 `x = ...`、`ans` | ✅ | ✅ | ✅ |
+| 删除单个变量 | ✅ | ✅ | ✅ |
 | 计算历史 | ✅ | ✅ | ✅ 本地持久化 |
 | 输入历史与快捷键 | ✅ 本地持久化 | ✅ 当前会话 | ✅ |
+| 实时结果预览 | — | — | ✅ |
+| 精度调节 / 历史搜索 | ✅ / — | ✅ / — | ✅ / ✅ |
 | 管道 / 脚本输入 | — | ✅ | — |
 | 无网络、无账号、无追踪 | ✅ | ✅ | ✅ |
 
@@ -44,13 +47,13 @@ Windows 桌面版下载：[GitHub Releases](https://github.com/yangxiaoran2014/s
 
 ### 直接运行 EXE
 
-从 [Releases](https://github.com/yangxiaoran2014/scicalc/releases/latest) 下载 `SciCalcCMD-1.1.1-windows-x64.exe`，双击即可，不需要安装 Python。
+从 [Releases](https://github.com/yangxiaoran2014/scicalc/releases/latest) 下载 `SciCalcCMD-1.2.0-windows-x64.exe`，双击即可，不需要安装 Python。
 
 > 这是一个未签名的个人构建。Windows SmartScreen 可能提示“未知发布者”，请核对 Release 中公布的 SHA-256 后运行。
 >
-> `SciCalcCMD-1.1.1-windows-x64.exe` SHA-256：`E7EB88E39D2AE1754029A67CFC1E685B188167B3932848DD787FECCBDA071CD4`
+> `SciCalcCMD-1.2.0-windows-x64.exe` SHA-256：`4DAA80B0F71E438A612F5325027036BA66CAA3EE5D312F1C3D95FF758DDFA77F`
 >
-> Release 同时提供一个带本地测试证书的 `SciCalcCMD-1.1.1-windows-x64-test-signed.exe`。该证书不受公共信任，仅用于验证签名流程；普通用户建议下载上面的未签名官方构建。
+> Release 同时提供一个带本地测试证书的 `SciCalcCMD-1.2.0-windows-x64-test-signed.exe`。该证书不受公共信任，仅用于验证签名流程；普通用户建议下载上面的未签名官方构建。
 
 ### 从源码运行
 
@@ -92,7 +95,9 @@ C:\Users\me>
 | `cls`, `clear` | 清屏 |
 | `reset` | 清空变量和计算历史 |
 | `vars`, `v` | 查看变量和 `ans` |
+| `del <变量>` | 删除单个变量（也支持 `unset`） |
 | `history [n]` | 查看最近 n 条计算记录 |
+| `history clear` | 只清空计算历史 |
 | `deg` / `rad` | 切换角度单位 |
 | `precision N` | 设置有效数字（1–17） |
 | `mode` | 查看角度、精度和历史状态 |
@@ -107,9 +112,12 @@ C:\Users\me>
 | `↑` / `↓` | 浏览输入历史 |
 | `Tab` | 补全命令、函数和常量 |
 | `F1` | 帮助（保留当前输入） |
+| `F2` | 打开变量窗口（Enter 插入，Del 删除） |
 | `F7` | 打开历史记录选择窗口 |
 | `Ctrl+L` | 清屏 |
 | `Ctrl+C` | 复制选中内容；没有选中时取消当前输入 |
+| `Ctrl+Shift+C` | 复制上一次计算结果 |
+| `Ctrl++` / `Ctrl+-` / `Ctrl+0` | 放大 / 缩小 / 重置字号 |
 | `Ctrl+V` / `Shift+Insert` | 粘贴 |
 | `Esc` | 清空当前输入 |
 
@@ -132,7 +140,7 @@ powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 powershell -ExecutionPolicy Bypass -File .\sign-windows-test.ps1
 ```
 
-脚本会创建一个仅用于本地测试的证书链，复制 `dist\SciCalcCMD-1.1.1-windows-x64.exe` 到 `dist\signed\`，使用 SHA-256 和 RFC 3161 时间戳签名，并导出 `SciCalc-LocalTest-RootCA.cer`。原始 EXE 不会被修改。
+脚本会创建一个仅用于本地测试的证书链，复制 `dist\SciCalcCMD-1.2.0-windows-x64.exe` 到 `dist\signed\`，使用 SHA-256 和 RFC 3161 时间戳签名，并导出 `SciCalc-LocalTest-RootCA.cer`。原始 EXE 不会被修改。
 
 > 这是**自签名测试**，不是受信任的公开签名。其他电脑没有这个测试根证书，仍会显示“未知发布者”，SmartScreen 也可能继续拦截。不要把它当作公开发布签名。
 >
@@ -181,7 +189,7 @@ python -m scicalc -2^2 + 10
 
 ```console
 $ python -m scicalc
-SciCalc 1.1.1
+SciCalc 1.2.0
 科学计算器  ·  RAD  ·  12 位有效数字
 输入 :help 查看命令，:quit 退出。
 
@@ -205,7 +213,9 @@ sci[deg]> sin(30)
 | `:quit`, `:q` | 退出 |
 | `:clear` | 清除变量和历史 |
 | `:vars`, `:v` | 查看变量 |
+| `:del <变量>` | 删除单个变量（也支持 `:unset`） |
 | `:history [n]` | 查看最近记录 |
+| `:history clear` | 只清空计算历史 |
 | `:deg`, `:rad` | 切换角度单位 |
 | `:precision N` | 设置有效数字（1–17） |
 | `:mode` | 查看当前模式 |
@@ -249,6 +259,8 @@ python -m http.server 8000 --directory docs
 ```
 
 网页计算引擎位于 [`docs/core.js`](docs/core.js)，与 UI 解耦并有独立的 Node.js 测试。它同样是手写解析器，不使用 `eval`。
+
+网页版支持输入时的实时结果预览、1–17 位精度选择（本地持久化）、历史记录搜索、单变量删除、`Ctrl+L` 清空，以及移动端历史面板。历史中的表达式点击即可载入输入框。
 
 ## 测试
 

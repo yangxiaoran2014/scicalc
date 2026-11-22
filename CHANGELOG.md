@@ -4,6 +4,26 @@ All notable changes to SciCalc are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases use
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-11-22
+
+### Added
+
+- Web live result preview while typing, debounced and non-recording.
+- Web precision selector (1–17 significant digits) with local persistence.
+- Web history search and per-variable delete buttons, plus a `del x` command.
+- Desktop status bar with angle, precision, variable/history counts, and
+  shortcut hints.
+- Desktop F2 variable manager, `Ctrl+Shift+C` copy-result shortcut, and
+  `Ctrl++` / `Ctrl+-` / `Ctrl+0` font zoom.
+- `del <variable>` / `unset <variable>` and `history clear` commands in the
+  CLI, desktop session, and web UI.
+- Bounded calculation history (500 entries) to keep long sessions small.
+
+### Changed
+
+- Version bumped to 1.2.0.
+- Desktop command help and README updated for the new shortcuts and commands.
+
 ## [1.1.1] - 2026-10-25
 
 ### Changed
@@ -62,6 +82,7 @@ All notable changes to SciCalc are documented here. The format follows
 - Python and Node.js test suites.
 - GitHub Pages deployment from `docs/`.
 
+[1.2.0]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.2.0
 [1.1.1]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.1.1
 [1.1.0]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.1.0
 [1.0.0]: https://github.com/yangxiaoran2014/scicalc/releases/tag/v1.0.0

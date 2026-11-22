@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import unittest
 
-from scicalc.engine import CalcError, Calculator, format_number
+from scicalc.engine import MAX_CALC_HISTORY, CalcError, Calculator, format_number
 
 
 class CalculatorTestCase(unittest.TestCase):
@@ -152,6 +152,29 @@ class CalculatorTestCase(unittest.TestCase):
             self.value("1001!")
         with self.assertRaisesRegex(CalcError, "过长"):
             self.value("1+" * 1001 + "1")
+
+    def test_delete_variable_and_clear_history(self) -> None:
+        self.assertEqual(self.value("x = 12"), 12)
+        self.assertEqual(self.value("y = 3"), 3)
+        self.assertTrue(self.calculator.delete_variable("x"))
+        self.assertFalse(self.calculator.delete_variable("x"))
+        self.assertFalse(self.calculator.delete_variable("missing"))
+        self.assertNotIn("x", self.calculator.variables)
+        self.assertIn("y", self.calculator.variables)
+
+        self.calculator.evaluate("1 + 1")
+        self.assertEqual(len(self.calculator.history), 3)
+        self.calculator.clear_history()
+        self.assertEqual(self.calculator.history, [])
+        self.assertEqual(self.calculator.variables, {"y": 3})
+        self.assertEqual(self.calculator.ans, 2)
+
+    def test_calculation_history_is_bounded(self) -> None:
+        for index in range(MAX_CALC_HISTORY + 5):
+            self.calculator.evaluate(f"{index}+0")
+        self.assertEqual(len(self.calculator.history), MAX_CALC_HISTORY)
+        self.assertEqual(self.calculator.history[-1].source, f"{MAX_CALC_HISTORY + 4}+0")
+        self.assertNotIn("0+0", [entry.source for entry in self.calculator.history])
 
     def test_history_recording(self) -> None:
         self.calculator.evaluate("2 + 2")

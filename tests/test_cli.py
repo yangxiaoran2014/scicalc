@@ -88,6 +88,15 @@ class CliTests(unittest.TestCase):
         self.assertIn("0.5", result.stdout)
         self.assertIn("ans = 0.5", result.stdout)
 
+    def test_delete_variable_and_clear_history(self) -> None:
+        result = run_cli(stdin="x = 5\ny = 2\n:history clear\n:del x\n:vars\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("已清空计算历史", result.stdout)
+        self.assertIn("已删除变量 'x'", result.stdout)
+        variables = result.stdout.rsplit("已删除变量 'x'。", 1)[-1]
+        self.assertIn("y = 2", variables)
+        self.assertNotIn("x = 5", variables)
+
     def test_help(self) -> None:
         result = run_cli("--help")
         self.assertEqual(result.returncode, 0)
@@ -97,7 +106,7 @@ class CliTests(unittest.TestCase):
     def test_version(self) -> None:
         result = run_cli("--version")
         self.assertEqual(result.returncode, 0)
-        self.assertIn("scicalc 1.1.1", result.stdout)
+        self.assertIn("scicalc 1.2.0", result.stdout)
 
 
 if __name__ == "__main__":

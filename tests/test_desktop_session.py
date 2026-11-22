@@ -66,6 +66,25 @@ class DesktopSessionTests(unittest.TestCase):
         self.assertNotIn("1 + 1", result)
         self.assertIn("暂无", rendered(DesktopSession().submit("history")))
 
+    def test_delete_variable_command(self) -> None:
+        self.session.submit("x = 12")
+        self.session.submit("y = 3")
+        self.assertIn("已删除变量 'x'", rendered(self.session.submit("del x")))
+        self.assertNotIn("x", self.session.calculator.variables)
+        self.assertIn("不存在", rendered(self.session.submit("unset x")))
+        self.assertIn("用法", rendered(self.session.submit("del")))
+        self.assertEqual(self.session.calculator.ans, 3)
+
+    def test_clear_calculation_history_only(self) -> None:
+        self.session.submit("x = 12")
+        self.session.submit("1 + 1")
+        self.assertIn("已清空计算历史", rendered(self.session.submit("history clear")))
+        self.assertEqual(self.session.calculator.history, [])
+        self.assertIn("x", self.session.calculator.variables)
+        self.assertEqual(self.session.calculator.ans, 2)
+        self.assertGreater(len(self.session.command_history), 0)
+        self.assertIn("暂无", rendered(self.session.submit("history")))
+
     def test_mode_and_about(self) -> None:
         self.session.submit("x = 1")
         mode = rendered(self.session.submit("mode"))

@@ -146,6 +146,30 @@ class DesktopUiTests(unittest.TestCase):
         self.assertIsNotNone(self.app._history_window)
         self.assertTrue(self.app._history_window.winfo_exists())
 
+    def test_f2_variables_window_opens(self) -> None:
+        self.app.set_input("x = 5")
+        self.app.submit()
+        self.app._show_variables_window()
+        self.root.update_idletasks()
+        self.assertIsNotNone(self.app._variables_window)
+        self.assertTrue(self.app._variables_window.winfo_exists())
+
+    def test_status_bar_and_zoom(self) -> None:
+        self.assertIn("RAD", self.app.status_left.cget("text"))
+        self.assertIn("F2 VARS", self.app.status_right.cget("text"))
+        self.app._zoom_in()
+        self.assertEqual(self.app.font.cget("size"), 12)
+        self.app._zoom_reset()
+        self.assertEqual(self.app.font.cget("size"), 11)
+
+    def test_copy_result_shortcut(self) -> None:
+        self.app.set_input("6 * 7")
+        self.app.submit()
+        self.app._copy_result()
+        self.root.update_idletasks()
+        self.assertEqual(self.root.clipboard_get(), "42")
+        self.assertIn("COPIED", self.app.status_right.cget("text"))
+
     def test_oversized_paste_is_rejected(self) -> None:
         self.root.clipboard_clear()
         self.root.clipboard_append("1" * 2_001)

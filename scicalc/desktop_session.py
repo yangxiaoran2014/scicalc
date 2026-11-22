@@ -29,6 +29,9 @@ _COMMAND_ALIASES = {
     "reset": "reset",
     "vars": "vars",
     "v": "vars",
+    "del": "del",
+    "delete": "del",
+    "unset": "del",
     "history": "history",
     "hist": "history",
     "deg": "deg",
@@ -48,6 +51,7 @@ COMMAND_NAMES = (
     "cls",
     "reset",
     "vars",
+    "del",
     "history",
     "deg",
     "rad",
@@ -124,7 +128,9 @@ def help_lines() -> tuple[OutputLine, ...]:
         _rich(("  cls, clear          ", "help_cmd"), ("清屏", "text")),
         _rich(("  reset               ", "help_cmd"), ("清空变量和计算历史", "text")),
         _rich(("  vars, v             ", "help_cmd"), ("查看变量和 ans", "text")),
+        _rich(("  del <name>          ", "help_cmd"), ("删除单个变量", "text")),
         _rich(("  history [n]         ", "help_cmd"), ("查看最近 n 条计算记录（默认 10）", "text")),
+        _rich(("  history clear       ", "help_cmd"), ("只清空计算历史", "text")),
         _rich(("  deg / rad           ", "help_cmd"), ("切换角度单位", "text")),
         _rich(("  precision <1-17>    ", "help_cmd"), ("设置有效数字位数", "text")),
         _rich(("  mode                ", "help_cmd"), ("显示角度、精度和历史状态", "text")),
@@ -145,9 +151,12 @@ def help_lines() -> tuple[OutputLine, ...]:
         _rich(("  ↑ / ↓    ", "help_cmd"), ("浏览输入历史", "text")),
         _rich(("  Tab      ", "help_cmd"), ("补全命令、函数和常量", "text")),
         _rich(("  F1       ", "help_cmd"), ("打开帮助", "text")),
+        _rich(("  F2       ", "help_cmd"), ("打开变量窗口", "text")),
         _rich(("  F7       ", "help_cmd"), ("打开历史记录窗口", "text")),
         _rich(("  Ctrl+L   ", "help_cmd"), ("清屏", "text")),
         _rich(("  Ctrl+C   ", "help_cmd"), ("复制选中内容；无选中时取消输入", "text")),
+        _rich(("  Ctrl+Shift+C", "help_cmd"), ("复制上一次结果", "text")),
+        _rich(("  Ctrl+ +/-", "help_cmd"), ("调整字号，Ctrl+0 重置", "text")),
         _rich(("  Esc      ", "help_cmd"), ("清空当前输入", "text")),
     )
 
@@ -258,7 +267,29 @@ class DesktopSession:
         if command == "vars":
             return Outcome(self._variable_lines())
 
+        if command == "del":
+            if len(arguments) != 1:
+                return _error_outcome(
+                    "del " + " ".join(arguments),
+                    CalcError("用法：del <变量名>", 0),
+                )
+            name = arguments[0]
+            if self.calculator.delete_variable(name):
+                return Outcome((OutputLine.plain(f"已删除变量 '{name}'。", "success"),))
+            return _error_outcome(
+                f"del {name}", CalcError(f"变量 '{name}' 不存在。", 0)
+            )
+
         if command == "history":
+            if arguments and arguments[0].lower() in ("clear", "reset"):
+                if len(arguments) > 1:
+                    return _error_outcome(
+                        "history " + " ".join(arguments),
+                        CalcError("用法：history clear", 0),
+                    )
+                self.calculator.clear_history()
+                return Outcome((OutputLine.plain("已清空计算历史。", "success"),))
+
             count = 10
             if arguments:
                 try:
@@ -266,7 +297,7 @@ class DesktopSession:
                 except ValueError:
                     return _error_outcome(
                         "history " + " ".join(arguments),
-                        CalcError("用法：history [正整数]", 0),
+                        CalcError("用法：history [正整数 | clear]", 0),
                     )
                 if count < 1:
                     return _error_outcome(

@@ -2,6 +2,7 @@ import { CalcError, Calculator, formatNumber } from "./core.js";
 
 const THEME_KEY = "scicalc-theme";
 const ANGLE_KEY = "scicalc-angle";
+const PRECISION_KEY = "scicalc-precision";
 const HISTORY_KEY = "scicalc-history-v1";
 const MAX_HISTORY = 30;
 const OPERATORS = new Set(["+", "-", "*", "/", "%", "^"]);
@@ -19,6 +20,9 @@ const elements = {
   errorLine: document.getElementById("errorLine"),
   angleMeta: document.getElementById("angleMeta"),
   angleButtons: Array.from(document.querySelectorAll("[data-angle]")),
+  precisionSelect: document.getElementById("precisionSelect"),
+  previewLine: document.getElementById("previewLine"),
+  previewResult: document.getElementById("previewResult"),
   themeToggle: document.getElementById("themeToggle"),
   themeMeta: document.querySelector('meta[name="theme-color"]'),
   copyButton: document.getElementById("copyButton"),
@@ -28,6 +32,9 @@ const elements = {
   historyToggle: document.getElementById("historyToggle"),
   sidePanel: document.getElementById("sidePanel"),
   historyList: document.getElementById("historyList"),
+  historySearch: document.getElementById("historySearch"),
+  historyCount: document.getElementById("historyCount"),
+  closeHistory: document.getElementById("closeHistory"),
   clearHistory: document.getElementById("clearHistory"),
   clearSession: document.getElementById("clearSession"),
   variableList: document.getElementById("variableList"),
@@ -54,6 +61,11 @@ function loadAngleMode() {
   return readStorage(ANGLE_KEY) === "deg" ? "deg" : "rad";
 }
 
+function loadPrecision() {
+  const value = Number(readStorage(PRECISION_KEY));
+  return Number.isInteger(value) && value >= 1 && value <= 17 ? value : 12;
+}
+
 function loadHistory() {
   const raw = readStorage(HISTORY_KEY);
   if (!raw) return [];
@@ -76,15 +88,18 @@ function loadHistory() {
 
 const calculator = new Calculator({
   angleMode: loadAngleMode(),
-  precision: 12
+  precision: loadPrecision()
 });
 
 let history = loadHistory();
+let historyQuery = "";
 let currentResultText = "0";
 let currentResultValue = null;
 let historyCursor = -1;
 let draftInput = "";
 let toastTimer = 0;
+let previewTimer = 0;
+let previewToken = 0;
 let isComposing = false;
 
 function saveHistory() {
@@ -121,6 +136,40 @@ function displayResult(text, { animate = true } = {}) {
     void elements.result.offsetWidth;
     elements.result.classList.add("is-fresh");
   }
+}
+
+function clearPreview() {
+  previewToken += 1;
+  window.clearTimeout(previewTimer);
+  previewTimer = 0;
+  elements.previewLine.hidden = true;
+  elements.previewResult.textContent = "";
+}
+
+function schedulePreview() {
+  const expression = elements.input.value.trim();
+  if (!expression) {
+    clearPreview();
+    return;
+  }
+
+  window.clearTimeout(previewTimer);
+  const token = previewToken + 1;
+  previewToken = token;
+
+  previewTimer = window.setTimeout(() => {
+    previewTimer = 0;
+    if (token !== previewToken) return;
+    try {
+      const result = calculator.evaluate(expression, { record: false });
+      const prefix = result.assignment ? `${result.assignment} = ` : "= ";
+      elements.previewResult.textContent = `${prefix}${result.text}`;
+      elements.previewLine.hidden = false;
+    } catch (error) {
+      elements.previewLine.hidden = true;
+      elements.previewResult.textContent = "";
+    }
+  }, 170);
 }
 
 function clearError() {
@@ -161,6 +210,33 @@ function setAngleMode(mode, { persist = true } = {}) {
   }
 
   if (persist) writeStorage(ANGLE_KEY, mode);
+  schedulePreview();
+}
+
+function populatePrecisionSelect() {
+  const fragment = document.createDocumentFragment();
+  for (let value = 1; value <= 17; value += 1) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = String(value);
+    fragment.append(option);
+  }
+  elements.precisionSelect.append(fragment);
+  elements.precisionSelect.value = String(calculator.precision);
+}
+
+function setPrecision(value, { persist = true } = {}) {
+  const precision = Number(value);
+  if (!Number.isInteger(precision) || precision < 1 || precision > 17) return;
+  calculator.setPrecision(precision);
+  elements.precisionSelect.value = String(calculator.precision);
+  if (persist) writeStorage(PRECISION_KEY, String(calculator.precision));
+
+  if (currentResultValue !== null && !elements.console.classList.contains("is-error")) {
+    displayResult(formatNumber(currentResultValue, calculator.precision), { animate: false });
+  }
+  renderVariables();
+  schedulePreview();
 }
 
 function applyTheme(theme) {
@@ -189,16 +265,23 @@ function formatTime(timestamp) {
   }
 }
 
-function createHistoryEmpty() {
+function createHistoryEmpty(query = "") {
   const empty = document.createElement("div");
   empty.className = "history-empty";
-  empty.innerHTML =
-    '<span class="history-empty-icon">' +
+  const icon = document.createElement("span");
+  icon.className = "history-empty-icon";
+  icon.innerHTML =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.2"></path>' +
     '<path d="M3.5 3.8v4.4h4.4M12 7.5V12l3.1 1.8"></path>' +
-    "</svg></span>" +
-    "<p>还没有计算记录<span>提交一条表达式后会保存在这里</span></p>";
+    "</svg>";
+
+  const copy = document.createElement("p");
+  copy.textContent = query ? `没有匹配“${query}”的记录` : "还没有计算记录";
+  const hint = document.createElement("span");
+  hint.textContent = query ? "换个关键词试试" : "提交一条表达式后会保存在这里";
+  copy.append(hint);
+  empty.append(icon, copy);
   return empty;
 }
 
@@ -206,13 +289,32 @@ function renderHistory() {
   elements.clearHistory.disabled = history.length === 0;
   elements.historyList.replaceChildren();
 
+  const query = historyQuery.trim().toLocaleLowerCase();
+  const visible = history
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => {
+      if (!query) return true;
+      return (
+        entry.expression.toLocaleLowerCase().includes(query) ||
+        entry.text.toLocaleLowerCase().includes(query)
+      );
+    });
+
+  elements.historyCount.textContent = query
+    ? `${visible.length}/${history.length}`
+    : String(history.length);
+
   if (history.length === 0) {
     elements.historyList.append(createHistoryEmpty());
     return;
   }
+  if (visible.length === 0) {
+    elements.historyList.append(createHistoryEmpty(historyQuery.trim()));
+    return;
+  }
 
   const fragment = document.createDocumentFragment();
-  history.forEach((entry, index) => {
+  for (const { entry, index } of visible) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "history-item";
@@ -237,7 +339,7 @@ function renderHistory() {
     top.append(expression, time);
     button.append(top, value);
     fragment.append(button);
-  });
+  }
 
   elements.historyList.append(fragment);
 }
@@ -252,6 +354,9 @@ function renderVariables() {
   ];
 
   for (const [name, value] of entries) {
+    const item = document.createElement("div");
+    item.className = "variable-item";
+
     const button = document.createElement("button");
     button.type = "button";
     button.className = "variable-chip";
@@ -265,7 +370,20 @@ function renderVariables() {
     result.textContent = value;
 
     button.append(label, result);
-    elements.variableList.append(button);
+    item.append(button);
+
+    if (name !== "ans") {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "variable-remove";
+      remove.dataset.removeVariable = name;
+      remove.title = `删除 ${name}`;
+      remove.setAttribute("aria-label", `删除变量 ${name}`);
+      remove.textContent = "×";
+      item.append(remove);
+    }
+
+    elements.variableList.append(item);
   }
 
   if (names.length === 0) {
@@ -301,6 +419,7 @@ function resetConsole() {
   elements.input.removeAttribute("aria-invalid");
   historyCursor = -1;
   draftInput = "";
+  clearPreview();
   clearError();
   currentResultValue = null;
   currentResultText = "0";
@@ -315,8 +434,29 @@ function resetConsole() {
 
 function runExpression(source) {
   const expression = String(source ?? elements.input.value).trim();
+  clearPreview();
   if (!expression) {
     elements.input.focus({ preventScroll: true });
+    return;
+  }
+
+  const deleteMatch = expression.match(/^(?:del|unset|delete)\s+([\p{L}_][\p{L}\p{N}_]*)$/iu);
+  if (deleteMatch) {
+    const name = deleteMatch[1];
+    if (calculator.deleteVariable(name)) {
+      clearError();
+      renderVariables();
+      setStatus("success", "DELETED");
+      setLastCommand(`> ${expression}`);
+      showToast(`已删除变量 ${name}`);
+      elements.input.value = "";
+      elements.input.focus({ preventScroll: true });
+      historyCursor = -1;
+      draftInput = "";
+      schedulePreview();
+    } else {
+      showError(new CalcError(`变量 '${name}' 不存在。`, 0), expression);
+    }
     return;
   }
 
@@ -359,6 +499,7 @@ function handleInputChange() {
   historyCursor = -1;
   draftInput = "";
   updateStatusFromInput();
+  if (!isComposing) schedulePreview();
 }
 
 function currentSelection() {
@@ -457,6 +598,7 @@ function browseHistory(direction) {
   elements.input.setSelectionRange(end, end);
   clearError();
   updateStatusFromInput();
+  schedulePreview();
 }
 
 function loadExpression(expression) {
@@ -466,6 +608,7 @@ function loadExpression(expression) {
   elements.input.setSelectionRange(end, end);
   clearError();
   setStatus("editing", "EDITING");
+  schedulePreview();
   if (window.matchMedia("(max-width: 900px)").matches) {
     closeHistoryPanel();
   }
@@ -557,12 +700,16 @@ function dispatchEventListeners() {
 
   elements.input.addEventListener("compositionend", () => {
     isComposing = false;
+    schedulePreview();
   });
 
   elements.input.addEventListener("keydown", (event) => {
     if (event.isComposing) return;
 
-    if (event.key === "Escape") {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "l") {
+      event.preventDefault();
+      resetConsole();
+    } else if (event.key === "Escape") {
       event.preventDefault();
       resetConsole();
     } else if (event.key === "ArrowUp") {
@@ -645,6 +792,17 @@ function dispatchEventListeners() {
   elements.copyButton.addEventListener("click", copyResult);
   elements.helpButton.addEventListener("click", openHelp);
   elements.closeHelp.addEventListener("click", closeHelp);
+  elements.closeHistory.addEventListener("click", closeHistoryPanel);
+
+  elements.precisionSelect.addEventListener("change", () => {
+    setPrecision(Number(elements.precisionSelect.value));
+    elements.input.focus({ preventScroll: true });
+  });
+
+  elements.historySearch.addEventListener("input", () => {
+    historyQuery = elements.historySearch.value;
+    renderHistory();
+  });
 
   elements.helpDialog.addEventListener("click", (event) => {
     if (event.target === elements.helpDialog) closeHelp();
@@ -662,6 +820,8 @@ function dispatchEventListeners() {
 
   elements.clearHistory.addEventListener("click", () => {
     history = [];
+    historyQuery = "";
+    elements.historySearch.value = "";
     saveHistory();
     renderHistory();
     showToast("历史记录已清空");
@@ -671,12 +831,24 @@ function dispatchEventListeners() {
     elements.clearSession.addEventListener("click", () => {
       calculator.clear();
       renderVariables();
+      schedulePreview();
       showToast("会话变量已重置");
       elements.input.focus({ preventScroll: true });
     });
   }
 
   elements.variableList.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-variable]");
+    if (remove) {
+      const name = remove.dataset.removeVariable;
+      if (calculator.deleteVariable(name)) {
+        renderVariables();
+        schedulePreview();
+        showToast(`已删除变量 ${name}`);
+      }
+      return;
+    }
+
     const chip = event.target.closest("[data-variable]");
     if (!chip) return;
     insertText(chip.dataset.variable);
@@ -692,6 +864,7 @@ function dispatchEventListeners() {
 }
 
 applyTheme(elements.root.dataset.theme === "light" ? "light" : "dark");
+populatePrecisionSelect();
 setAngleMode(calculator.angleMode);
 renderVariables();
 renderHistory();

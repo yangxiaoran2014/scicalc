@@ -119,7 +119,11 @@
             <div class="console-meta">
               <span id="angleMeta">RAD</span>
               <span>·</span>
-              <span>12 DIGITS</span>
+              <label class="precision-control" title="有效数字位数">
+                <span class="sr-only">有效数字位数</span>
+                <select id="precisionSelect" aria-label="有效数字位数"></select>
+                <span class="precision-suffix">DIGITS</span>
+              </label>
               <button class="copy-button" id="copyButton" type="button" aria-label="复制结果" title="复制结果">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="8" y="8" width="11" height="11" rx="2"></rect>
@@ -145,6 +149,11 @@
               <span class="run-arrow" aria-hidden="true">↵</span>
             </button>
           </form>
+
+          <div class="preview-line" id="previewLine" hidden>
+            <span class="preview-label">PREVIEW</span>
+            <output id="previewResult"></output>
+          </div>
 
           <div class="console-bottom">
             <span id="commandHint">Enter 计算 · Esc 清空 · ↑↓ 历史</span>
@@ -217,8 +226,26 @@
               <p class="eyebrow">MEMORY</p>
               <h2>历史记录</h2>
             </div>
-            <button class="text-button" id="clearHistory" type="button">清空</button>
+            <div class="panel-actions">
+              <button class="icon-button side-panel-close" id="closeHistory" type="button" aria-label="关闭历史面板">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+                  <path d="m6 6 12 12M18 6 6 18"></path>
+                </svg>
+              </button>
+              <button class="text-button" id="clearHistory" type="button">清空</button>
+            </div>
           </header>
+          <div class="history-tools">
+            <label class="history-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5"></circle>
+                <path d="m16 16 4.2 4.2"></path>
+              </svg>
+              <span class="sr-only">搜索历史记录</span>
+              <input id="historySearch" type="search" placeholder="搜索历史" autocomplete="off" spellcheck="false">
+            </label>
+            <span class="history-count" id="historyCount" aria-live="polite">0</span>
+          </div>
           <div class="history-list" id="historyList"></div>
         </section>
 
@@ -238,7 +265,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>SciCalc 1.1.1 · 纯前端科学计算器</span>
+      <span>SciCalc 1.2.0 · 纯前端科学计算器</span>
       <span class="footer-sep" aria-hidden="true">/</span>
       <span>no accounts · no tracking</span>
       <span class="footer-spacer"></span>
@@ -266,6 +293,7 @@
           <div><kbd>Enter</kbd><span>计算当前表达式</span></div>
           <div><kbd>Esc</kbd><span>清空输入框</span></div>
           <div><kbd>↑</kbd><kbd>↓</kbd><span>翻阅历史表达式</span></div>
+          <div><kbd>Ctrl</kbd><kbd>L</kbd><span>清空输入与结果</span></div>
           <div><kbd>?</kbd><span>打开本帮助</span></div>
         </div>
       </section>
@@ -301,7 +329,7 @@
           <code>pi / π</code>、<code>e</code>、<code>tau / τ</code>、<code>phi</code>；
           <code>ans</code> 表示上一次结果。
         </p>
-        <p class="help-copy">使用 <code>x = 2^10</code> 保存变量，之后输入 <code>x / 4</code> 使用它。</p>
+        <p class="help-copy">使用 <code>x = 2^10</code> 保存变量，之后输入 <code>x / 4</code> 使用它；输入 <code>del x</code> 删除变量，或点击变量右侧的 ×。</p>
       </section>
     </div>
   </dialog>

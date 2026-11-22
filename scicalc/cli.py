@@ -21,7 +21,9 @@ _HELP_TEXT = """\
   :quit, :q          退出
   :clear             清除变量和历史记录
   :vars, :v          查看当前变量
+  :del <变量>        删除单个变量
   :history, :hist    查看最近 10 条记录，可加数量，如 :history 20
+  :history clear     只清空计算历史
   :deg / :rad        切换角度单位
   :precision N       设置有效数字位数（1-17）
   :mode              查看当前模式
@@ -265,14 +267,28 @@ def _handle_command(command_line: str, calculator: Calculator, style: Style) -> 
     if command in ("vars", "v"):
         return _format_variables(calculator, style), True
 
+    if command in ("del", "delete", "unset"):
+        if len(arguments) != 1:
+            return style.error("用法：:del <变量名>"), True
+        name = arguments[0]
+        if calculator.delete_variable(name):
+            return style.accent(f"已删除变量 '{name}'。"), True
+        return style.error(f"变量 '{name}' 不存在。"), True
+
     if command in ("history", "hist"):
+        if arguments and arguments[0].lower() in ("clear", "reset"):
+            if len(arguments) > 1:
+                return style.error("用法：:history clear"), True
+            calculator.clear_history()
+            return style.dim("已清空计算历史。"), True
+
         if not arguments:
             count = 10
         else:
             try:
                 count = int(arguments[0])
             except ValueError:
-                return style.error("用法：:history [数量]"), True
+                return style.error("用法：:history [数量 | clear]"), True
             if count < 1:
                 return style.error("数量必须是正整数。"), True
         return _format_history(calculator, style, count), True

@@ -110,6 +110,18 @@ test("reserved names cannot be assigned", () => {
   }
 });
 
+test("variables can be deleted", () => {
+  const calculator = new Calculator();
+  calculator.evaluate("x = 12");
+  calculator.evaluate("y = 3");
+  assert.equal(calculator.deleteVariable("x"), true);
+  assert.equal(calculator.deleteVariable("x"), false);
+  assert.equal(calculator.deleteVariable("missing"), false);
+  assert.equal(calculator.variables.x, undefined);
+  assert.equal(calculator.variables.y, 3);
+  assert.equal(calculator.evaluate("ans", { record: false }).value, 3);
+});
+
 test("recording can be disabled", () => {
   const calculator = new Calculator();
   calculator.evaluate("1+1");

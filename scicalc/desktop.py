@@ -24,7 +24,7 @@ from .desktop_session import (
     load_app_state,
     save_app_state,
 )
-from .engine import FUNCTIONS, MAX_SOURCE_LENGTH
+from .engine import FUNCTIONS, MAX_SOURCE_LENGTH, format_number
 
 _APP_TITLE = "命令提示符 - SciCalc CMD"
 _DEFAULT_STATE = object()
@@ -41,6 +41,7 @@ _SELECT = "#264F78"
 _SCROLL = "#3A3A3A"
 _SCROLL_ACTIVE = "#565656"
 _BORDER = "#2B2B2B"
+_STATUS_BG = "#090B09"
 
 _GEOMETRY_RE = re.compile(r"^(\d{3,4})x(\d{3,4})([+-]\d{1,5})([+-]\d{1,5})$")
 _COMPLETION_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)$")
@@ -268,6 +269,8 @@ class DesktopApp:
         self._closed = False
         self._context_menu: tk.Menu | None = None
         self._history_window: tk.Toplevel | None = None
+        self._variables_window: tk.Toplevel | None = None
+        self._font_size = 11
 
         self._configure_window(state.geometry)
         self._build_fonts()
@@ -320,11 +323,17 @@ class DesktopApp:
             (name for name in ("Cascadia Mono", "Consolas", "Courier New") if name in families),
             "TkFixedFont",
         )
-        self.font = tkfont.Font(self.root, family=family, size=11)
-        self.bold_font = tkfont.Font(self.root, family=family, size=11, weight="bold")
+        self.font = tkfont.Font(self.root, family=family, size=self._font_size)
+        self.bold_font = tkfont.Font(
+            self.root, family=family, size=self._font_size, weight="bold"
+        )
+        self.small_font = tkfont.Font(
+            self.root, family=family, size=max(7, self._font_size - 2)
+        )
 
     def _build_widgets(self) -> None:
         self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=0)
         self.root.grid_columnconfigure(0, weight=1)
 
         self.console = tk.Text(
@@ -351,6 +360,35 @@ class DesktopApp:
         self.scrollbar = _ConsoleScrollbar(self.root, self.console)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
         self.console.configure(yscrollcommand=self.scrollbar.set)
+
+        self.statusbar = tk.Frame(
+            self.root,
+            bg=_STATUS_BG,
+            highlightthickness=1,
+            highlightbackground=_BORDER,
+            borderwidth=0,
+        )
+        self.statusbar.grid(row=1, column=0, columnspan=2, sticky="ew")
+        self.status_left = tk.Label(
+            self.statusbar,
+            bg=_STATUS_BG,
+            fg=_DIM,
+            font=self.small_font,
+            anchor="w",
+            padx=10,
+            pady=4,
+        )
+        self.status_left.pack(side="left", fill="x", expand=True)
+        self.status_right = tk.Label(
+            self.statusbar,
+            bg=_STATUS_BG,
+            fg=_DIM,
+            font=self.small_font,
+            anchor="e",
+            padx=10,
+            pady=4,
+        )
+        self.status_right.pack(side="right")
         self._configure_tags()
 
     def _configure_tags(self) -> None:
@@ -390,6 +428,11 @@ class DesktopApp:
         self.console.bind("<Control-c>", self._cancel_or_copy)
         self.console.bind("<Control-a>", self._select_all)
         self.console.bind("<Control-v>", self._paste)
+        self.console.bind("<Control-Shift-C>", self._copy_result)
+        self.console.bind("<Control-plus>", self._zoom_in)
+        self.console.bind("<Control-equal>", self._zoom_in)
+        self.console.bind("<Control-minus>", self._zoom_out)
+        self.console.bind("<Control-0>", self._zoom_reset)
         self.console.bind("<Control-Key>", self._block_control_key)
         self.console.bind("<<Paste>>", self._paste)
         self.console.bind("<Shift-Insert>", self._paste)
@@ -399,8 +442,14 @@ class DesktopApp:
         self.console.bind("<Control-MouseWheel>", self._scroll_output)
 
         self.root.bind("<F1>", self._show_help_event)
+        self.root.bind("<F2>", self._show_variables_window)
         self.root.bind("<F7>", self._show_history_window)
         self.root.bind("<Control-l>", self._clear_screen_event)
+        self.root.bind("<Control-Shift-C>", self._copy_result)
+        self.root.bind("<Control-plus>", self._zoom_in)
+        self.root.bind("<Control-equal>", self._zoom_in)
+        self.root.bind("<Control-minus>", self._zoom_out)
+        self.root.bind("<Control-0>", self._zoom_reset)
         self.root.bind("<MouseWheel>", self._scroll_output)
 
     # ------------------------------------------------------------------
@@ -448,6 +497,17 @@ class DesktopApp:
 
     def _update_title(self) -> None:
         self.root.title(f"{_APP_TITLE} [{self.session.angle_mode.upper()}]")
+        self._update_status()
+
+    def _update_status(self) -> None:
+        calculator = self.session.calculator
+        self.status_left.configure(
+            text=(
+                f" {self.session.angle_mode.upper()}  ·  {self.session.precision} DIGITS"
+                f"  ·  {len(calculator.variables)} VARS  ·  {len(calculator.history)} CALC"
+            )
+        )
+        self.status_right.configure(text="F1 HELP  ·  F2 VARS  ·  F7 HISTORY  ·  CTRL+/-")
 
     def _focus_console(self) -> None:
         if not self._closed:
@@ -800,6 +860,36 @@ class DesktopApp:
         self.console.mark_set("insert", "end-1c")
         return "break"
 
+    def _copy_result(self, _event: tk.Event | None = None) -> str:
+        text = format_number(self.session.calculator.ans, self.session.precision)
+        self._copy_to_clipboard(text)
+        self.status_right.configure(text=f"COPIED  {text}")
+        self.root.after(1400, self._restore_status)
+        return "break"
+
+    def _restore_status(self) -> None:
+        if not self._closed:
+            self._update_status()
+
+    def _set_font_size(self, size: int) -> None:
+        self._font_size = max(8, min(22, size))
+        self.font.configure(size=self._font_size)
+        self.bold_font.configure(size=self._font_size)
+        self.small_font.configure(size=max(7, self._font_size - 2))
+        self._update_status()
+
+    def _zoom_in(self, _event: tk.Event | None = None) -> str:
+        self._set_font_size(self._font_size + 1)
+        return "break"
+
+    def _zoom_out(self, _event: tk.Event | None = None) -> str:
+        self._set_font_size(self._font_size - 1)
+        return "break"
+
+    def _zoom_reset(self, _event: tk.Event | None = None) -> str:
+        self._set_font_size(11)
+        return "break"
+
     def _show_context_menu(self, event: tk.Event) -> str:
         menu = tk.Menu(
             self.root,
@@ -813,9 +903,11 @@ class DesktopApp:
             relief="solid",
         )
         menu.add_command(label="复制", command=self._copy_selection)
+        menu.add_command(label="复制结果", command=self._copy_result)
         menu.add_command(label="粘贴", command=self._paste)
         menu.add_separator()
         menu.add_command(label="全选", command=self._select_all)
+        menu.add_command(label="变量", command=self._show_variables_window)
         menu.add_command(label="清屏", command=self._clear_console)
         menu.add_command(label="帮助", command=self._show_help)
         self._context_menu = menu
@@ -919,6 +1011,120 @@ class DesktopApp:
             return "break"
 
         listbox.bind("<Double-Button-1>", choose)
+        window.bind("<Return>", choose)
+        window.bind("<KP_Enter>", choose)
+        window.bind("<Escape>", lambda _event: close_window())
+        window.protocol("WM_DELETE_WINDOW", close_window)
+        try:
+            window.grab_set()
+        except tk.TclError:
+            pass
+        window.after(60, lambda: _apply_dark_title_bar(window))
+        return "break"
+
+    def _show_variables_window(self, _event: tk.Event | None = None) -> str:
+        if self._variables_window is not None and self._variables_window.winfo_exists():
+            self._variables_window.lift()
+            self._variables_window.focus_force()
+            return "break"
+
+        window = tk.Toplevel(self.root)
+        self._variables_window = window
+        window.title("变量")
+        window.configure(bg=_BG)
+        window.transient(self.root)
+        window.resizable(False, False)
+        popup_width, popup_height = 460, 320
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        popup_x = self.root.winfo_rootx() + max(
+            16, (self.root.winfo_width() - popup_width) // 2
+        )
+        popup_y = self.root.winfo_rooty() + max(
+            40, (self.root.winfo_height() - popup_height) // 2
+        )
+        popup_x = max(0, min(screen_width - popup_width, popup_x))
+        popup_y = max(0, min(screen_height - popup_height, popup_y))
+        window.geometry(f"{popup_width}x{popup_height}+{popup_x}+{popup_y}")
+
+        frame = tk.Frame(window, bg=_BG, padx=10, pady=10)
+        frame.pack(fill="both", expand=True)
+        listbox = tk.Listbox(
+            frame,
+            bg="#1B1B1B",
+            fg=_FG,
+            font=self.font,
+            selectbackground=_SELECT,
+            selectforeground="#FFFFFF",
+            activestyle="none",
+            highlightthickness=1,
+            highlightbackground=_BORDER,
+            highlightcolor=_ACCENT,
+            borderwidth=0,
+            exportselection=False,
+        )
+        listbox.pack(fill="both", expand=True)
+        hint = tk.Label(
+            frame,
+            text="Enter 插入变量 · Del 删除 · Esc 关闭",
+            bg=_BG,
+            fg=_DIM,
+            font=self.small_font,
+            anchor="w",
+        )
+        hint.pack(fill="x", pady=(8, 0))
+
+        def entries() -> list[tuple[str, int | float]]:
+            calculator = self.session.calculator
+            return [("ans", calculator.ans)] + [
+                (name, calculator.variables[name]) for name in sorted(calculator.variables)
+            ]
+
+        def populate() -> None:
+            current = entries()
+            listbox.delete(0, "end")
+            for name, value in current:
+                listbox.insert("end", f"{name}  =  {format_number(value, self.session.precision)}")
+            if current:
+                listbox.selection_set("end")
+                listbox.see("end")
+
+        def close_window() -> None:
+            self._variables_window = None
+            try:
+                window.grab_release()
+            except tk.TclError:
+                pass
+            window.destroy()
+            self._focus_console()
+
+        def choose(_event: tk.Event | None = None) -> str:
+            selection = listbox.curselection()
+            if selection:
+                name = entries()[selection[0]][0]
+                close_window()
+                if name != "ans":
+                    self.set_input(name)
+            return "break"
+
+        def remove(_event: tk.Event | None = None) -> str:
+            selection = listbox.curselection()
+            if not selection:
+                return "break"
+            name = entries()[selection[0]][0]
+            if name == "ans":
+                self.root.bell()
+                return "break"
+            if self.session.calculator.delete_variable(name):
+                populate()
+                self._update_status()
+                hint.configure(text=f"已删除 {name} · Enter 插入 · Esc 关闭")
+            return "break"
+
+        populate()
+        listbox.focus_set()
+        listbox.bind("<Double-Button-1>", choose)
+        listbox.bind("<Delete>", remove)
         window.bind("<Return>", choose)
         window.bind("<KP_Enter>", choose)
         window.bind("<Escape>", lambda _event: close_window())

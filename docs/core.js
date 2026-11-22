@@ -689,6 +689,14 @@ export class Calculator {
     this.ans = 0;
   }
 
+  deleteVariable(name) {
+    if (typeof name !== "string") return false;
+    const key = name.trim();
+    if (!key || !Object.prototype.hasOwnProperty.call(this.variables, key)) return false;
+    delete this.variables[key];
+    return true;
+  }
+
   evaluate(source, { record = true } = {}) {
     const original = String(source ?? "");
     if (!original.trim()) throw new CalcError("表达式为空", 0);

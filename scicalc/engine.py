@@ -13,6 +13,7 @@ from decimal import Decimal, ROUND_FLOOR, localcontext
 from typing import Any, Callable, Sequence
 
 MAX_SOURCE_LENGTH = 2_000
+MAX_CALC_HISTORY = 500
 MAX_FACTORIAL = 1_000
 MAX_INTEGER_EXPONENT = 10_000
 MAX_RESULT_BITS = 100_000
@@ -976,6 +977,22 @@ class Calculator:
         self.history.clear()
         self.ans = 0
 
+    def delete_variable(self, name: str) -> bool:
+        """Remove a user variable, returning whether it existed."""
+
+        if not isinstance(name, str):
+            return False
+        name = name.strip()
+        if not name or name not in self.variables:
+            return False
+        del self.variables[name]
+        return True
+
+    def clear_history(self) -> None:
+        """Clear calculation history without touching variables or ``ans``."""
+
+        self.history.clear()
+
     def evaluate(self, source: str, *, record: bool = True) -> CalcResult:
         source = source.strip()
         if not source:
@@ -1016,5 +1033,7 @@ class Calculator:
                 self.variables[assignment] = value
             self.ans = value
             self.history.append(HistoryEntry(source, text, assignment))
+            if len(self.history) > MAX_CALC_HISTORY:
+                del self.history[:-MAX_CALC_HISTORY]
 
         return CalcResult(source, value, text, assignment)
